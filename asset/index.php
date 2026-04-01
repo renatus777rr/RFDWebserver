@@ -4,97 +4,77 @@ $parent_dir = realpath($this_dir . '/../');
 $target_path = $parent_dir . '/SavedAssets/';
 
 error_reporting(0);
+
+
 function gzfilesize($zp) {
-      $gzfs = strlen($zp);
-  return($gzfs);
+    return strlen($zp);
 }
 
-$stringxd = $_GET['id'];
-function uncompress($srcName, $dstName) {
-    $sfp = gzopen($srcName, "rb");
-    $fp = fopen($dstName, "w");
 
-    while ($string = gzread($sfp, 4096)) {
-        fwrite($fp, $string, strlen($string));
-    }
-    gzclose($sfp);
-    fclose($fp);
+function uncompress($data) {
+    return gzuncompress($data);
 }
 
-if(file_exists("./".$_GET["id"]))
-{
-    header("Content-type: text/plain");
-    die(file_get_contents("./".$_GET['id']));
+$id = isset($_GET['id']) ? $_GET['id'] : '';
+if (empty($id)) {
+    http_response_code(400);
+    exit('Missing id parameter');
 }
-else
-{
-if(file_exists($target_path.$_GET["id"]) && file_get_contents($target_path.$_GET['id'])!="")
-{
- header("Content-type: text/plain");
-	$finished = file_get_contents($target_path.$_GET['id']);
-    echo $finished;
+
+
+$local_file = "./$id";
+if (file_exists($local_file)) {
+    header("Content-Type: text/plain");
+    readfile($local_file);
+    exit;
 }
-else
-{
-if (strstr($_GET['id'],'http'))
-{
-$url2 = $_GET['id'];
-Header("Location: ".$url2);
+
+$cache_file = $target_path . $id;
+if (file_exists($cache_file) && filesize($cache_file) > 0) {
+    header("Content-Type: text/plain");
+    readfile($cache_file);
+    exit;
 }
-else
-{
-$stringxd = $_GET['id'];
-if (strstr($stringxd,'1111111'))
-{
-$s2=explode("1111111", $stringxd)[1];
-$urlxd = "https://assetdelivery.roblox.com/v1/asset/?id=".$s2."&version=1";
-$file_name = $target_path.$_GET['id'];
-$myfile = fopen($file_name, "w");
-header($_SERVER["SERVER_PROTOCOL"] . " 200 OK");
-    header("Cache-Control: public");
-    header("Content-Type: application/zip");
-    header("Content-Transfer-Encoding: Binary");
-    header("Content-Length:".filesize($url));
-    header("Content-Disposition: attachment; filename=filePath");
-if (file_get_contents($urlxd)=="") {
-$fp = fopen($file_name, "w");
-$url = "https://api.hyra.io/audio/".$stringxd;
-$finished = file_get_contents($urlxd);
-fwrite($fp, $finished);
-fclose($fp);
+
+
+if (strpos($id, 'http') === 0) {
+    header("Location: $id");
+    exit;
 }
-else
-{
-uncompress($urlxd,$file_name);
+
+// Roblox asset handling. DO NOT ASK WHYYYYYYYY
+if (strpos($id, '1111111') !== false) {
+    $asset_id = explode('1111111', $id, 2);
+    $asset_id = isset($asset_id[1]) ? $asset_id[1] : '';
+} else {
+    $asset_id = $id;
 }
-Header("Location: ".$urlxd);
+
+$asset_url = "https://assetdelivery.roblox.com/v1/asset/?id=$asset_id&version=1"; // let me check if it works. okay no i think so.
+$audio_url = "https://api.hyra.io/audio/$id";
+$content = file_get_contents($asset_url);
+
+if ($content === false || empty($content)) {
+
+    $content = @file_get_contents($audio_url);
+    $content_type = 'audio/*';
+} else {
+    $content = uncompress($content);
+    $content_type = 'application/zip';
 }
-else
-{
-$stringxd = $_GET['id'];
-$url = "https://assetdelivery.roblox.com/v1/asset/?id=".$stringxd;
-$file_name = $target_path.$_GET['id'];
-$myfile = fopen($file_name, "w");
-header($_SERVER["SERVER_PROTOCOL"] . " 200 OK");
-    header("Cache-Control: public");
-    header("Content-Type: application/zip");
-    header("Content-Transfer-Encoding: Binary");
-    header("Content-Length:".filesize($url));
-    header("Content-Disposition: attachment; filename=filePath");
-if (file_get_contents($url)=="") {
-$fp = fopen($file_name, "w");
-$url = "https://api.hyra.io/audio/".$stringxd;
-$finished = file_get_contents($url);
-fwrite($fp, $finished);
-fclose($fp);
-}
-else
-{
-uncompress($url,$file_name);
-}
-Header("Location: ".$url);
-}
-}
-}
+
+if ($content !== false && !empty($content)) {
+    @file_put_contents($cache_file, $content);
+    
+    header($_SERVER['SERVER_PROTOCOL'] . ' 200 OK');
+    header('Cache-Control: public');
+    header("Content-Type: $content_type");
+    header('Content-Transfer-Encoding: Binary');
+    header("Content-Length: " . strlen($content));
+    header('Content-Disposition: attachment; filename="' . basename($id) . '"');
+    echo $content;
+} else {
+    http_response_code(404);
+    exit('Asset not found');
 }
 ?>
