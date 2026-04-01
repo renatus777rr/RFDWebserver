@@ -1,8 +1,9 @@
 <?php
 $robux = 9999999999;
-header("content-type:text/plain");
+$tix = 9999999999;
+header("Content-Type: application/json");  // why
+echo json_encode([
+    "robux" => $robux,
+    "tix" => $tix
+]);
 ?>
-{
-    "robux": <?php echo $robux ?>
-
-}
